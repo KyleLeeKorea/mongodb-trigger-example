@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 트리거 예제</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+        }
+        
+        .log-entry {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .log-time {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 MongoDB 트리거 예제</h1>
+        <p style="text-align: center; color: #666;">
+            사용자를 생성하면 자동으로 로그가 생성됩니다!
+        </p>
+    </div>
+
+    <div class="container">
+        <h2>👤 사용자 생성</h2>
+        <div id="alert"></div>
+        
+        <div class="form-group">
+            <label>이름</label>
+            <input type="text" id="name" placeholder="홍길동">
+        </div>
+        
+        <div class="form-group">
+            <label>이메일</label>
+            <input type="email" id="email" placeholder="hong@example.com">
+        </div>
+        
+        <div class="form-group">
+            <label>나이</label>
+            <input type="number" id="age" placeholder="30">
+        </div>
+        
+        <button onclick="createUser()">사용자 생성</button>
+        <button class="btn-success" onclick="loadUsers()">사용자 목록</button>
+    </div>
+
+    <div class="container">
+        <h2>👥 사용자 목록</h2>
+        <table id="userTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>이름</th>
+                    <th>이메일</th>
+                    <th>나이</th>
+                    <th>생성일</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="container">
+        <h2>📝 자동 생성된 로그</h2>
+        <button onclick="loadLogs()">MongoDB 로그 새로고침</button>
+        <button onclick="loadLogFiles()">로그 파일 목록</button>
+        <div id="logs"></div>
+    </div>
+
+    <div class="container">
+        <h2>📄 로그 파일 목록</h2>
+        <div id="logFiles"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3030/api';
+
+        // 사용자 생성
+        async function createUser() {
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const age = document.getElementById('age').value;
+
+            if (!name || !email) {
+                showAlert('이름과 이메일을 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, age: parseInt(age) || 0 })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('사용자가 성공적으로 생성되었습니다!', 'success');
+                    clearForm();
+                    // 1초 후 로그 새로고침 (트리거 동작 시간 고려)
+                    setTimeout(() => {
+                        loadLogs();
+                    }, 1000);
+                } else {
+                    showAlert(result.error || '사용자 생성에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                showAlert('서버 연결 오류: ' + error.message, 'error');
+            }
+        }
+
+        // 사용자 목록 로드
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/users`);
+                const users = await response.json();
+
+                const table = document.getElementById('userTable');
+                const tbody = document.getElementById('userTableBody');
+
+                tbody.innerHTML = '';
+
+                users.forEach(user => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${user.name}</td>
+                        <td>${user.email}</td>
+                        <td>${user.age}</td>
+                        <td>${new Date(user.createdAt).toLocaleString()}</td>
+                    `;
+                });
+
+                table.style.display = 'table';
+            } catch (error) {
+                showAlert('사용자 목록 로드 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 로그 로드 (MongoDB)
+        async function loadLogs() {
+            try {
+                const response = await fetch(`${API_BASE}/logs`);
+                const logs = await response.json();
+
+                const logsContainer = document.getElementById('logs');
+                logsContainer.innerHTML = '';
+
+                if (logs.length === 0) {
+                    logsContainer.innerHTML = '<p>MongoDB 로그가 없습니다.</p>';
+                    return;
+                }
+
+                logs.forEach(log => {
+                    const logDiv = document.createElement('div');
+                    logDiv.className = 'log-entry';
+                    logDiv.innerHTML = `
+                        <div class="log-time">${new Date(log.timestamp).toLocaleString()}</div>
+                        <div><strong>${log.action}</strong>: ${log.message}</div>
+                        <div style="font-size: 0.9em; color: #666;">
+                            데이터: ${JSON.stringify(log.data, null, 2)}
+                        </div>
+                    `;
+                    logsContainer.appendChild(logDiv);
+                });
+            } catch (error) {
+                showAlert('로그 로드 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 로그 파일 목록 로드
+        async function loadLogFiles() {
+            try {
+                const response = await fetch(`${API_BASE}/log-files`);
+                const files = await response.json();
+
+                const filesContainer = document.getElementById('logFiles');
+                filesContainer.innerHTML = '';
+
+                if (files.length === 0) {
+                    filesContainer.innerHTML = '<p>로그 파일이 없습니다.</p>';
+                    return;
+                }
+
+                files.forEach(file => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'log-entry';
+                    fileDiv.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>${file.filename}</strong>
+                                <div style="font-size: 0.9em; color: #666;">
+                                    크기: ${(file.size / 1024).toFixed(2)} KB | 
+                                    생성: ${new Date(file.created).toLocaleString()} | 
+                                    수정: ${new Date(file.modified).toLocaleString()}
+                                </div>
+                            </div>
+                            <button onclick="viewLogFile('${file.filename}')" style="margin-left: 10px;">내용 보기</button>
+                        </div>
+                    `;
+                    filesContainer.appendChild(fileDiv);
+                });
+            } catch (error) {
+                showAlert('로그 파일 목록 로드 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 로그 파일 내용 보기
+        async function viewLogFile(filename) {
+            try {
+                const response = await fetch(`${API_BASE}/log-files/${filename}`);
+                const logs = await response.json();
+
+                // 새 창으로 로그 내용 표시
+                const newWindow = window.open('', '_blank', 'width=800,height=600');
+                newWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>${filename} - 로그 내용</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; padding: 20px; }
+                                .log-entry { background: #f8f9fa; border-left: 4px solid #007bff; padding: 10px; margin: 5px 0; }
+                                .log-time { color: #666; font-size: 0.9em; }
+                                pre { background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>📄 ${filename}</h1>
+                            <p>총 ${logs.length}개의 로그 항목</p>
+                            ${logs.map(log => `
+                                <div class="log-entry">
+                                    <div class="log-time">${new Date(log.timestamp).toLocaleString()}</div>
+                                    <div><strong>${log.action}</strong>: ${log.message}</div>
+                                    <pre>${JSON.stringify(log.data, null, 2)}</pre>
+                                </div>
+                            `).join('')}
+                        </body>
+                    </html>
+                `);
+            } catch (error) {
+                showAlert('로그 파일 내용 로드 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 폼 초기화
+        function clearForm() {
+            document.getElementById('name').value = '';
+            document.getElementById('email').value = '';
+            document.getElementById('age').value = '';
+        }
+
+        // 알림 표시
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            
+            setTimeout(() => {
+                alertDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // 페이지 로드 시 초기화
+        window.onload = function() {
+            loadUsers();
+            loadLogs();
+            loadLogFiles();
+        };
+    </script>
+</body>
+</html>
+

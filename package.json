@@ -1,0 +1,29 @@
+{
+  "name": "mongodb-trigger-example",
+  "version": "1.0.0",
+  "description": "MongoDB 트리거 예제 - 데이터 생성 시 자동 로그 생성 (MongoDB + 파일)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "mongodb",
+    "triggers",
+    "nodejs",
+    "change-streams",
+    "logging"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.21.2",
+    "mongodb": "^6.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+

@@ -1,0 +1,2 @@
+{"timestamp":"2025-10-23T01:25:27.053Z","action":"user_created","data":{"userId":"68f984063a2cf6b39c2568aa","name":"파일테스트","email":"file@example.com"},"message":"user_created 이벤트 발생"}
+{"timestamp":"2025-10-23T01:30:15.050Z","action":"user_created","data":{"userId":"68f98527c5256da7aff8357e","name":"kyle2","email":"kyleleekorea@gmail.com"},"message":"user_created 이벤트 발생"}
